@@ -2,9 +2,6 @@ package startup
 
 import (
 	"errors"
-	"log"
-	"net"
-
 	kuiperapi "github.com/c12s/kuiper/pkg/api"
 	magnetarapi "github.com/c12s/magnetar/pkg/api"
 	"github.com/c12s/star/internal/configs"
@@ -14,6 +11,8 @@ import (
 	"github.com/c12s/star/pkg/api"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
+	"log"
+	"net"
 )
 
 type app struct {
@@ -21,6 +20,7 @@ type app struct {
 	grpcServer        *grpc.Server
 	configAsyncServer *servers.ConfigAsyncServer
 	shutdownProcesses []func()
+	serfAgent         *services.SerfAgent
 }
 
 func NewAppWithConfig(config *configs.Config) (*app, error) {
@@ -91,6 +91,22 @@ func (a *app) init() {
 	api.RegisterStarConfigServer(s, configGrpcServer)
 	reflection.Register(s)
 	a.grpcServer = s
+
+	agent, err := services.NewSerfAgent(a.config, natsConn, nodeId.Value)
+	a.serfAgent = agent
+}
+
+func (a *app) startSerfAgent() error {
+	err := a.serfAgent.Join(true)
+	if err != nil {
+		return err
+	}
+	a.serfAgent.RunMock()
+	//a.serfAgent.RunMock2()
+	a.serfAgent.Wg.Add(1)
+	go a.serfAgent.Listen()
+	go a.serfAgent.ListenNATS()
+	return nil
 }
 
 func (a *app) startConfigAsyncServer() error {
@@ -123,13 +139,17 @@ func (a *app) Start() error {
 	if err != nil {
 		return err
 	}
-
+	err = a.startSerfAgent()
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
 func (a *app) GracefulStop() {
 	go a.configAsyncServer.GracefulStop()
 	a.grpcServer.GracefulStop()
+	a.serfAgent.Leave()
 	for _, shudownProcess := range a.shutdownProcesses {
 		shudownProcess()
 	}

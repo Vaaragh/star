@@ -13,6 +13,12 @@ type Config struct {
 	nodeIdFileName                     string
 	grpcServerAddress                  string
 	oortAddress                        string
+	serfBindAddress                    string
+	serfBindPort                       int
+	serfJoinAddress                    string
+	serfJoinPort                       string
+	serfTag                            string
+	serfNodeName                       string
 }
 
 func (c *Config) NatsAddress() string {
@@ -43,9 +49,30 @@ func (c *Config) OortAddress() string {
 	return c.oortAddress
 }
 
+func (c *Config) SerfBindAddress() string {
+	return c.serfBindAddress
+}
+func (c *Config) SerfBindPort() int {
+	return c.serfBindPort
+}
+func (c *Config) SerfJoinAddress() string {
+	return c.serfJoinAddress
+}
+func (c *Config) SerfJoinPort() string {
+	return c.serfJoinPort
+}
+func (c *Config) SerfTag() string {
+	return c.serfTag
+}
+func (c *Config) SerfNodeName() string {
+	return c.serfNodeName
+}
+
 func NewFromEnv() (*Config, error) {
 	registrationReqTimeoutMilliseconds, err := strconv.Atoi(os.Getenv("REGISTRATION_REQ_TIMEOUT_MILLISECONDS"))
 	maxRegistrationRetries, err := strconv.Atoi(os.Getenv("MAX_REGISTRATION_RETRIES"))
+	serfBindPort, err := strconv.Atoi(os.Getenv("BIND_PORT"))
+
 	if err != nil {
 		return nil, err
 	}
@@ -57,5 +84,11 @@ func NewFromEnv() (*Config, error) {
 		nodeIdFileName:                     os.Getenv("NODE_ID_FILE_NAME"),
 		grpcServerAddress:                  os.Getenv("STAR_ADDRESS"),
 		oortAddress:                        os.Getenv("OORT_ADDRESS"),
+		serfBindAddress:                    os.Getenv("BIND_ADDRESS"),
+		serfBindPort:                       serfBindPort,
+		serfJoinAddress:                    os.Getenv("JOIN_CLUSTER_ADDRESS"),
+		serfJoinPort:                       os.Getenv("JOIN_CLUSTER_PORT"),
+		serfTag:                            os.Getenv("GOSSIP_TAG"),
+		serfNodeName:                       os.Getenv("GOSSIP_NODE_NAME"),
 	}, nil
 }
